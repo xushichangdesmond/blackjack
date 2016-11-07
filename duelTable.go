@@ -17,6 +17,8 @@ type DuelingTable interface {
 
 	SubscribeCardListener(CardListener)
 	SubscribeShuffleListener(ShuffleListener)
+
+	Info() (shoesPlayed uint, roundsPlayed uint)
 }
 
 // 1 player (1 box) vs the dealer
@@ -32,10 +34,10 @@ type duelingTable struct {
 	pJoinMutex sync.Mutex
 
 	bet    uint
-	rounds uint64
+	rounds uint
 	bal    Balance
 
-	shoesSofar int
+	shoesSofar uint
 
 	burnt *Hand
 
@@ -43,6 +45,10 @@ type duelingTable struct {
 
 	cardListeners    listeners
 	shuffleListeners listeners
+}
+
+func (t *duelingTable) Info() (shoesPlayed uint, roundsPlayed uint) {
+	return t.shoesSofar, t.rounds
 }
 
 func (t *duelingTable) SubscribeCardListener(l CardListener) {
@@ -122,9 +128,6 @@ func (t *duelingTable) shuffleIfRequired(p Player) {
 		}
 		*t.burnt = Hand([]Card{})
 		t.shoesSofar++
-		if t.shoesSofar%500 == 0 && glog.V(40) {
-			glog.Infoln("Shuffling after shoe #", t.shoesSofar, "; rounds so far=", t.rounds, "; player balance=", p.Balance())
-		}
 	}
 }
 

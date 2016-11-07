@@ -1,9 +1,10 @@
+//go:generate stringer -type=DoublingRule,SurrenderRule
 package blackjack
 
 type DoublingRule int
 
 const (
-	DoubleOnAny = iota
+	DoubleOnAny DoublingRule = iota
 	DoubleOnTenEleven
 	DoubleOnNineTenEleven
 	DoublingNotAllowed

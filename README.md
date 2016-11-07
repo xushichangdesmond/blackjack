@@ -30,6 +30,7 @@ A personal project of the authors' to simulate blackjack in the style that casin
 * Player balance (simple money account)
 * HiLo running counter
 * CSM running counter (keeps counts of previous 2 rounds)
+* red7 running counter
 * Customizable shufflers
     - out-of-box we provide
         * perfect shufflers
@@ -49,23 +50,29 @@ A personal project of the authors' to simulate blackjack in the style that casin
 
 ## Running the sim
 
-There is (yet) to be much customizations for the sim thru command line options.
-You will need to get your hands wet and edit sim/main.go to customize the sim for now.
-
-Out-of-box, you can run the following command
+For a start, try the following to get a detailed view into what is being simmed
 ```shell
 go run sim/main.go -logtostderr -v=50
 ```
+The above uses the default config for the sim, but performs very details logging which slows down the sim by a factor of a few hundred times.
 
-It is preconfigured with below
-- rules from a certain partciular real-world casino
-- CSM Shuffling (emulate some props from a popular CSM model) 
-- player that uses a simple hilo counting strategy adapted for counting CSM
-- player also sizes bets according to the running count
-
-Note that logging makes the sim much much much slower. If you want to the sim to run faster, then 
+To let the sim run much faster and have it only report the player balance and shoe# and round# periodically, use 
 ```shell
-go run sim/main.go -logtostderr -v=40
+go run sim/main.go -logtostderr
 ```
+
+There are some other configuration parameters that you can optionally set to affect the parameters of the sim.
+To see a full list of options (and the defaults used), use the -h option 
+```shell
+go run sim/main.go -h
+```
+
+The default config sets the sim up with the below
+- rules from a certain partciular real-world casino that uses 4 deck shoe and shuffles when left with one deck
+- perfect shuffling 
+- player that uses a red7 count
+- player sizes bets according to the running count
+- uses basic strategy to make play decisions
+- reports player balance and other stats every 10000 shoes
 
 [Donate to the author](https://www.paypal.me/powerDancer)
