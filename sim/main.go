@@ -37,7 +37,7 @@ func main() {
 	p := blackjack.NewBetSizeOnRunningCountPlayer(
 		csmC,
 		blackjack.NewBasicStrategyPlayer(r.MinBetUnits),
-		[]uint{1, 1, 1, 1, 1, 50, 60, 70},
+		[]uint{1, 1, 1, 1, 1, 40, 50},
 	)
 
 	t.SubscribeCardListener(cl)

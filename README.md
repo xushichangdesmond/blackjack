@@ -38,7 +38,6 @@ A personal project of the authors' to simulate blackjack in the style that casin
 ## Features that the author is working on now
 * Different counting strategies
 * Player that vary decisions based on count
-* Make it faster (99.5% of the cpu spent is actually because of logging)
 
 ## Features the author would work on if he has time/money
 * A player that makes decisions from human input

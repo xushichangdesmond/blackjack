@@ -30,6 +30,9 @@ func TestDealTo(t *testing.T) {
 
 func TestRareCases(t *testing.T) {
 	r := NewSolaireRules()
+	r.MinBetUnits = 1
+	r.BetUnit = 10
+
 	dt := NewDuelingTable(r, PerfectShuffler).(*duelingTable)
 
 	p := NewMockPlayer(r.MinBetUnits)
@@ -48,7 +51,7 @@ func TestRareCases(t *testing.T) {
 	dt.playOneRound(p)
 	p.Mock().AssertExpectations(t)
 
-	assert.Equal(t, 0, p.BalanceAmount())
+	assert.Equal(t, 0, p.Balance().Amount())
 
 	p = NewMockPlayer(r.MinBetUnits)
 	p.Mock().On("Decide", mock.Anything, mock.Anything).Twice().Return(SplitElseHit)
@@ -66,7 +69,7 @@ func TestRareCases(t *testing.T) {
 	dt.playOneRound(p)
 	p.Mock().AssertExpectations(t)
 
-	assert.Equal(t, -300, p.BalanceAmount())
+	assert.Equal(t, -10, p.Balance().Amount())
 
 	p = NewMockPlayer(r.MinBetUnits)
 	p.Mock().On("Surrender", mock.Anything, mock.Anything).Once().Return(false)
@@ -87,5 +90,5 @@ func TestRareCases(t *testing.T) {
 	dt.playOneRound(p)
 	p.Mock().AssertExpectations(t)
 
-	assert.Equal(t, -300, p.BalanceAmount())
+	assert.Equal(t, -10, p.Balance().Amount())
 }

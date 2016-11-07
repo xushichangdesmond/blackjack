@@ -122,7 +122,7 @@ func (t *duelingTable) shuffleIfRequired(p Player) {
 		}
 		*t.burnt = Hand([]Card{})
 		t.shoesSofar++
-		if t.shoesSofar%100000 == 0 && glog.V(40) {
+		if t.shoesSofar%500 == 0 && glog.V(40) {
 			glog.Infoln("Shuffling after shoe #", t.shoesSofar, "; rounds so far=", t.rounds, "; player balance=", p.Balance())
 		}
 	}
