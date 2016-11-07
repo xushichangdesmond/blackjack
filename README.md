@@ -43,14 +43,14 @@ A personal project of the authors' to simulate blackjack in the style that casin
 * More rules
 * Pontoon table and rules
 
-## Running the simple
+## Running the sim
 
 There is (yet) to be much customizations for the sim thru command line options.
 You will need to get your hands wet and edit sim/main.go to customize the sim for now.
 
 Out-of-box, you can run a sim with Manila Solaire rules and a basic strategy player with
-'''shell
+```shell
 go run sim/main.go -logtostderr
-''' 
+```
 
 [Donate to the author](https://www.paypal.me/powerDancer)
