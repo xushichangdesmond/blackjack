@@ -4,15 +4,7 @@ import "github.com/xushichangdesmond/blackjack/shuffle"
 
 type Shoe Hand
 
-var _ shuffle.Shufflable = (Shoe)(nil)
-
-func (s Shoe) Shuffle() {
-	shuffle.Shuffle(s)
-}
-
-func (s Shoe) Size() int {
-	return len(s)
-}
+var _ shuffle.Swapper = (Shoe)(nil)
 
 func (s Shoe) Swap(a, b int) {
 	s[a], s[b] = s[b], s[a]
@@ -37,14 +29,3 @@ func NewShoe(numOfStandardDecks int) Shoe {
 	}
 	return s
 }
-
-/*func (s Shoe) String() string {
-	b := bytes.Buffer{}
-	b.WriteRune('[')
-	for _, c := range s {
-		b.WriteString(c.String())
-		b.WriteRune(',')
-	}
-	b.WriteRune(']')
-	return b.String()
-}*/

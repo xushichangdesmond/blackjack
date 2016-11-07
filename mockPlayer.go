@@ -13,16 +13,8 @@ type mockPlayer struct {
 	mock *mock.Mock
 }
 
-func (m *mockPlayer) BalanceReceiver() Receiver {
-	return m.bal.Receiver()
-}
-
-func (m *mockPlayer) BalanceAmount() int {
-	return m.bal.Amount()
-}
-
-func (m *mockPlayer) PayTo(amount uint, r Receiver) {
-	m.bal.Pay(amount, r)
+func (m *mockPlayer) Balance() Balance {
+	return m.bal
 }
 
 func (m *mockPlayer) Decide(ph Hand, dcv CardValue) PlayDecision {

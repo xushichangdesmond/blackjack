@@ -25,11 +25,24 @@ func main() {
 	rand.Seed(time.Now().Unix())
 
 	r := blackjack.NewSolaireRules()
-	t := blackjack.NewDuelingTable(r)
+	t := blackjack.NewDuelingTable(r, blackjack.ShuffleMaster126)
+
 	ctx := context.Background()
 	t.Open(ctx)
+
 	//p := blackjack.NewRandomPlayer(r.MinBetUnits)
-	p := blackjack.NewBasicStrategyPlayer(r.MinBetUnits)
+	//p := blackjack.NewBasicStrategyPlayer(r.MinBetUnits)
+
+	csmC, cl, sl := blackjack.NewCSMCounter()
+	p := blackjack.NewBetSizeOnRunningCountPlayer(
+		csmC,
+		blackjack.NewBasicStrategyPlayer(r.MinBetUnits),
+		[]uint{1, 1, 1, 1, 1, 50, 60, 70},
+	)
+
+	t.SubscribeCardListener(cl)
+	t.SubscribeShuffleListener(sl)
+
 	err := t.Join(p)
 	if err != nil {
 		panic(err)

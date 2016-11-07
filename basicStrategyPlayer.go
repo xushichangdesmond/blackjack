@@ -16,16 +16,8 @@ func NewBasicStrategyPlayer(bet uint) Player {
 	return &bsPlayer{bet, NewBalance()}
 }
 
-func (p *bsPlayer) BalanceReceiver() Receiver {
-	return p.bal.Receiver()
-}
-
-func (p *bsPlayer) BalanceAmount() int {
-	return p.bal.Amount()
-}
-
-func (p *bsPlayer) PayTo(amount uint, r Receiver) {
-	p.bal.Pay(amount, r)
+func (p *bsPlayer) Balance() Balance {
+	return p.bal
 }
 
 func (p *bsPlayer) Decide(ph Hand, dcv CardValue) PlayDecision {

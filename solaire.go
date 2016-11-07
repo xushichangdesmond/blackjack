@@ -14,9 +14,9 @@ func NewSolaireRules() *Rules {
 		SurrenderRule:  SurrenderExceptDelaerAce,
 		EarlySurrender: true,
 
-		MinBetUnits: 3,
+		MinBetUnits: 1,
 		MaxBetUnits: 100,
-		BetUnit:     100,
+		BetUnit:     50,
 
 		NumberOfDecks: 6,
 

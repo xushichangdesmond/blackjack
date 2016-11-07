@@ -1,9 +1,7 @@
 package blackjack
 
 type Player interface {
-	BalanceReceiver() Receiver
-	BalanceAmount() int
-	PayTo(amount uint, r Receiver)
+	Balance() Balance
 
 	Decide(ph Hand, dcv CardValue) PlayDecision
 

@@ -14,6 +14,9 @@ type DuelingTable interface {
 	Table
 
 	Join(Player) error
+
+	SubscribeCardListener(CardListener)
+	SubscribeShuffleListener(ShuffleListener)
 }
 
 // 1 player (1 box) vs the dealer
@@ -31,6 +34,23 @@ type duelingTable struct {
 	bet    uint
 	rounds uint64
 	bal    Balance
+
+	shoesSofar int
+
+	burnt *Hand
+
+	shuffler Shuffler
+
+	cardListeners    listeners
+	shuffleListeners listeners
+}
+
+func (t *duelingTable) SubscribeCardListener(l CardListener) {
+	t.cardListeners.Subscribe(l)
+}
+
+func (t *duelingTable) SubscribeShuffleListener(l ShuffleListener) {
+	t.shuffleListeners.Subscribe(l)
 }
 
 func (t *duelingTable) Rules() *Rules {
@@ -63,16 +83,20 @@ func (t *duelingTable) Open(ctx context.Context) {
 					t.pJoinMutex.Lock()
 					t.havePlayer = false
 					t.pJoinMutex.Unlock()
-					glog.Infoln("Player ", p, " has left the table")
+					if glog.V(50) {
+						glog.Infoln("Player ", p, " has left the table")
+					}
 					continue
 				}
 				go func() {
 					defer func() {
 						t.p <- p
 					}()
-					glog.Infoln("Player has placed bet of ", t.bet, " units")
+					if glog.V(50) {
+						glog.Infoln("Player has placed bet of ", t.bet, " units")
+					}
 					t.playOneRound(p)
-					t.shuffleIfRequired()
+					t.shuffleIfRequired(p)
 				}()
 			}
 		}
@@ -90,15 +114,24 @@ func (t *duelingTable) askForBet(p Player) uint {
 	return b
 }
 
-func (t *duelingTable) shuffleIfRequired() {
+func (t *duelingTable) shuffleIfRequired(p Player) {
 	if len(t.s) < t.r.ShufflingPoint {
-		t.s = NewShoe(t.r.NumberOfDecks)
-		t.s.Shuffle()
+		t.s = t.shuffler(t.s, *t.burnt)
+		for _, l := range t.shuffleListeners.ls {
+			(l.(ShuffleListener))()
+		}
+		*t.burnt = Hand([]Card{})
+		t.shoesSofar++
+		if t.shoesSofar%100000 == 0 && glog.V(40) {
+			glog.Infoln("Shuffling after shoe #", t.shoesSofar, "; rounds so far=", t.rounds, "; player balance=", p.Balance())
+		}
 	}
 }
 
 func (t *duelingTable) playOneRound(p Player) {
-	glog.Infoln("New round #", t.rounds)
+	if glog.V(50) {
+		glog.Infoln("New round #", t.rounds)
+	}
 	t.rounds++
 
 	z := 0
@@ -139,10 +172,14 @@ func (t *duelingTable) playOneRound(p Player) {
 	}
 	if askForSurrenders {
 		if p.Surrender(*t.phs[0].Hand, dcv) {
-			glog.Infoln("Player surrendered")
+			if glog.V(50) {
+				glog.Infoln("Player surrendered")
+			}
 			t.logHands()
-			p.PayTo(t.phs[0].OriginalBet*t.r.BetUnit/2, t.bal.Receiver())
-			glog.Infoln("Player balance", p.BalanceAmount())
+			p.Balance().Pay(t.phs[0].OriginalBet*t.r.BetUnit/2, t.bal.Receiver())
+			if glog.V(50) {
+				glog.Infoln("Player balance", p.Balance().Amount())
+			}
 			return
 		}
 	}
@@ -172,25 +209,33 @@ func (t *duelingTable) playOneRound(p Player) {
 			handIndex++
 		case Hit:
 			if *currentHand.AceSplit && !t.r.CanHitAfterAceSplit {
-				glog.Infoln("Cannot hit...")
+				if glog.V(50) {
+					glog.Infoln("Cannot hit...")
+				}
 				handIndex++
 				continue
 			}
 			t.dealTo(currentHand.Hand)
 		case DoubleDownElseHit:
 			if *currentHand.AceSplit && !t.r.CanHitAfterAceSplit {
-				glog.Infoln("Cannot hit...")
+				if glog.V(50) {
+					glog.Infoln("Cannot hit...")
+				}
 				handIndex++
 				continue
 			}
 
 			double := true
 			if len(*currentHand.Hand) != 2 {
-				glog.Infoln("Cannot double with ", len(*currentHand.Hand), " cards in hand; hitting instead...")
+				if glog.V(50) {
+					glog.Infoln("Cannot double with ", len(*currentHand.Hand), " cards in hand; hitting instead...")
+				}
 				double = false
 			}
 			if !t.r.DoubleAfterSplits && *currentHand.NumberOfSplits != 0 {
-				glog.Infoln("Cannot double after splitting; hitting instead...")
+				if glog.V(50) {
+					glog.Infoln("Cannot double after splitting; hitting instead...")
+				}
 				double = false
 			}
 			t.dealTo(currentHand.Hand)
@@ -200,18 +245,24 @@ func (t *duelingTable) playOneRound(p Player) {
 			}
 		case DoubleDownElseStand:
 			if *currentHand.AceSplit && !t.r.CanHitAfterAceSplit {
-				glog.Infoln("Cannot hit...")
+				if glog.V(50) {
+					glog.Infoln("Cannot hit...")
+				}
 				handIndex++
 				continue
 			}
 
 			if len(*currentHand.Hand) != 2 {
-				glog.Infoln("Cannot double with ", len(*currentHand.Hand), " cards in hand; standing instead...")
+				if glog.V(50) {
+					glog.Infoln("Cannot double with ", len(*currentHand.Hand), " cards in hand; standing instead...")
+				}
 				handIndex++
 				continue
 			}
 			if !t.r.DoubleAfterSplits && *currentHand.NumberOfSplits != 0 {
-				glog.Infoln("Cannot double after splitting; standing instead...")
+				if glog.V(50) {
+					glog.Infoln("Cannot double after splitting; standing instead...")
+				}
 				handIndex++
 				continue
 			}
@@ -221,19 +272,27 @@ func (t *duelingTable) playOneRound(p Player) {
 		case SplitElseHit:
 			split := true
 			if *currentHand.AceSplit && *currentHand.NumberOfSplits == t.r.MaxAceSplits {
-				glog.Infoln("Cannot split - reached max number of splits for this hand; hitting instead")
+				if glog.V(50) {
+					glog.Infoln("Cannot split - reached max number of splits for this hand; hitting instead")
+				}
 				split = false
 			} else if *currentHand.NumberOfSplits == t.r.MaxSplitsPerHand {
-				glog.Infoln("Cannot split - reached max number of splits for this hand; hitting instead")
+				if glog.V(50) {
+					glog.Infoln("Cannot split - reached max number of splits for this hand; hitting instead")
+				}
 				split = false
 			}
 
 			if split {
 				nh, err := currentHand.Split()
 				if err != nil {
-					glog.Infoln("Split denied - ", err, "; hitting instead")
+					if glog.V(50) {
+						glog.Infoln("Split denied - ", err, "; hitting instead")
+					}
 					if *currentHand.AceSplit && !t.r.CanHitAfterAceSplit {
-						glog.Infoln("Cannot hit...")
+						if glog.V(50) {
+							glog.Infoln("Cannot hit...")
+						}
 						handIndex++
 						continue
 					}
@@ -252,7 +311,9 @@ func (t *duelingTable) playOneRound(p Player) {
 				t.logHands()
 			} else {
 				if *currentHand.AceSplit && !t.r.CanHitAfterAceSplit {
-					glog.Infoln("Cannot hit...")
+					if glog.V(50) {
+						glog.Infoln("Cannot hit...")
+					}
 					handIndex++
 					continue
 				}
@@ -260,18 +321,24 @@ func (t *duelingTable) playOneRound(p Player) {
 			}
 		case SplitElseStand:
 			if *currentHand.AceSplit && *currentHand.NumberOfSplits == t.r.MaxAceSplits {
-				glog.Infoln("Cannot split - reached max number of splits for this hand; standing instead")
+				if glog.V(50) {
+					glog.Infoln("Cannot split - reached max number of splits for this hand; standing instead")
+				}
 				handIndex++
 				continue
 			}
 			if *currentHand.NumberOfSplits == t.r.MaxSplitsPerHand {
-				glog.Infoln("Cannot split - reached max number of splits for this hand; standing instead")
+				if glog.V(50) {
+					glog.Infoln("Cannot split - reached max number of splits for this hand; standing instead")
+				}
 				handIndex++
 				continue
 			}
 			nh, err := currentHand.Split()
 			if err != nil {
-				glog.Infoln("Split denied - ", err, "; standing instead")
+				if glog.V(50) {
+					glog.Infoln("Split denied - ", err, "; standing instead")
+				}
 				handIndex++
 				continue
 			}
@@ -290,7 +357,9 @@ func (t *duelingTable) playOneRound(p Player) {
 		}
 	}
 
-	glog.Infoln("Players have finished their turns")
+	if glog.V(50) {
+		glog.Infoln("Players have finished their turns")
+	}
 	t.logHands()
 
 	//dealers turn
@@ -333,15 +402,19 @@ func (t *duelingTable) playOneRound(p Player) {
 					}
 					if dealerBJ {
 						if hwb.OriginalBet != 0 {
-							p.PayTo(hwb.OriginalBet*t.r.BetUnit, t.bal.Receiver())
-							glog.Infoln("Player balance", p.BalanceAmount())
+							p.Balance().Pay(hwb.OriginalBet*t.r.BetUnit, t.bal.Receiver())
+							if glog.V(50) {
+								glog.Infoln("Player balance", p.Balance().Amount())
+							}
 						}
 						continue
 					}
 				}
 			}
-			p.PayTo((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
-			glog.Infoln("Player balance", p.BalanceAmount())
+			p.Balance().Pay((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
+			if glog.V(50) {
+				glog.Infoln("Player balance", p.Balance().Amount())
+			}
 			continue
 		}
 
@@ -358,13 +431,15 @@ func (t *duelingTable) playOneRound(p Player) {
 
 		if dealerBJ {
 			if t.r.PlayerLosesOriginalBetOnlyOnDealerBJ {
-				p.PayTo(hwb.OriginalBet*t.r.BetUnit, t.bal.Receiver())
+				p.Balance().Pay(hwb.OriginalBet*t.r.BetUnit, t.bal.Receiver())
 			} else {
 				if hwb.OriginalBet != 0 && hwb.AdditionalBet != 0 {
-					p.PayTo((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
+					p.Balance().Pay((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
 				}
 			}
-			glog.Infoln("Player balance", p.BalanceAmount())
+			if glog.V(50) {
+				glog.Infoln("Player balance", p.Balance().Amount())
+			}
 			continue
 		}
 
@@ -410,8 +485,10 @@ func (t *duelingTable) playOneRound(p Player) {
 			// dealer busted
 			t.payPlayer(p, (hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit)
 		case dealerV > pv:
-			p.PayTo((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
-			glog.Infoln("Player balance", p.BalanceAmount())
+			p.Balance().Pay((hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit, t.bal.Receiver())
+			if glog.V(50) {
+				glog.Infoln("Player balance", p.Balance().Amount())
+			}
 		case dealerV < pv:
 			t.payPlayer(p, (hwb.OriginalBet+hwb.AdditionalBet)*t.r.BetUnit)
 		}
@@ -419,32 +496,45 @@ func (t *duelingTable) playOneRound(p Player) {
 }
 
 func (t *duelingTable) payPlayer(p Player, amount uint) {
-	t.bal.Pay(amount, p.BalanceReceiver())
-	glog.Infoln("Player balance", p.BalanceAmount())
+	t.bal.Pay(amount, p.Balance().Receiver())
+	if glog.V(50) {
+		glog.Infoln("Player balance", p.Balance().Amount())
+	}
 }
 
 func (t *duelingTable) logHands() {
-	glog.Infoln("Player Hands ", t.phs, "; dealer hand ", t.dh)
+	if glog.V(50) {
+		glog.Infoln("Player Hands ", t.phs, "; dealer hand ", t.dh)
+	}
 }
 
 func (t *duelingTable) dealTo(h *Hand) {
-	*h = append(*h, t.s[0])
+	c := t.s[0]
+	for _, l := range t.cardListeners.ls {
+		(l.(CardListener))(c)
+	}
+	*t.burnt = append(*t.burnt, c)
+	*h = append(*h, c)
 	t.s = t.s[1:]
 	t.logHands()
 }
 
-func NewDuelingTable(r *Rules) DuelingTable {
+func NewDuelingTable(r *Rules, shuffler Shuffler) DuelingTable {
+	burnt := Hand([]Card{})
 	t := &duelingTable{
-		r:   r,
-		p:   make(chan Player),
-		s:   NewShoe(r.NumberOfDecks),
-		bal: NewBalance(),
+		r:        r,
+		p:        make(chan Player),
+		s:        PerfectShuffler(NewShoe(r.NumberOfDecks), []Card{}),
+		bal:      NewBalance(),
+		shuffler: shuffler,
+		burnt:    &burnt,
 	}
-	t.s.Shuffle()
 	return t
 }
 
 func logPlayerDecision(d PlayDecision) PlayDecision {
-	glog.Infoln("Player has decided on ", d)
+	if glog.V(50) {
+		glog.Infoln("Player has decided on ", d)
+	}
 	return d
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func TestDealTo(t *testing.T) {
-	dt := NewDuelingTable(NewSolaireRules()).(*duelingTable)
+	dt := NewDuelingTable(NewSolaireRules(), PerfectShuffler).(*duelingTable)
 
 	shoeSize := len(dt.s)
 	firstCardInShoe := dt.s[0]
@@ -30,7 +30,7 @@ func TestDealTo(t *testing.T) {
 
 func TestRareCases(t *testing.T) {
 	r := NewSolaireRules()
-	dt := NewDuelingTable(r).(*duelingTable)
+	dt := NewDuelingTable(r, PerfectShuffler).(*duelingTable)
 
 	p := NewMockPlayer(r.MinBetUnits)
 	p.Mock().On("Decide", mock.Anything, mock.Anything).Twice().Return(SplitElseHit)
